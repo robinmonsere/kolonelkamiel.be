@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Gebruik Pool in plaats van Client voor efficiënter hergebruik van connecties
+// Gebruik Pool voor efficiënte connectie-hergebruik
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -14,17 +14,20 @@ module.exports = async (req, res) => {
     const { email } = req.body;
 
     if (!email || !email.includes('@')) {
-        return res.status(400).json({ error: 'Invalid email' });
+        return res.status(400).json({ error: 'Fout, controleer uw e-mailadres.' });
     }
 
     try {
         const client = await pool.connect();
-        await client.query('INSERT INTO emails (email) VALUES ($1)', [email]);
-        client.release(); // Release de connectie terug naar de pool
+        await client.query(
+            'INSERT INTO emails (email) VALUES ($1) ON CONFLICT (email) DO NOTHING',
+            [email]
+        );
+        client.release();
 
-        res.status(200).json({ message: 'Email saved successfully' });
+        res.status(200).json({ message: 'E-mail succesvol opgeslagen. Wij houden u op de hoogte.' });
     } catch (error) {
         console.error('Database error:', error);
-        res.status(500).json({ error: 'Database error' });
+        res.status(500).json({ error: 'Oei, er ging iets mis. Probeer later opnieuw.' });
     }
 };
